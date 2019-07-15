@@ -1,5 +1,5 @@
 import pygame
-import math
+import vector
 pygame.init()
 
 class Object(object):
@@ -15,19 +15,17 @@ X=0
 Y=1
 WIDTH=28
 HEIGHT=31
-WINDOW_WIDTH=310*2
-WINDOW_HEIGHT=280*2
+SIZES=(WIDTH,HEIGHT)
+WINDOW=vector.multiply_scalar(SIZES,20)
 FPS=60
 LPS=4
 DELAY=FPS/LPS
-UNIT_X=WINDOW_WIDTH/WIDTH
-UNIT_Y=WINDOW_HEIGHT/HEIGHT
-ANIMATION_X=1/DELAY
-ANIMATION_Y=1/DELAY
-if UNIT_X<UNIT_Y:
-    MIN=UNIT_X
+UNIT=vector.divide(WINDOW,SIZES)
+ANIMATION=1/DELAY
+if UNIT[X]<UNIT[Y]:
+    MIN=UNIT[X]
 else:
-    MIN=UNIT_Y
+    MIN=UNIT[Y]
 DOT_RADIUS=MIN/4
 PADDING=MIN/8
 BLACK=(0,0,0)
@@ -43,6 +41,7 @@ RED_TARGET=(26,1)
 GREEN_TARGET=(4,29)
 PINK_TARGET=(1,1)
 BLUE_TARGET=(23,29)
+PACMAN_HOME=(14,23)
 
 # Reads the map
 level=[['' for y in range(0,HEIGHT)] for x in range(0,WIDTH)]
@@ -55,7 +54,7 @@ with open('level.txt') as f:
             level[x][y]=read
 
 #Window initialization
-surface=pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
+surface=pygame.display.set_mode(WINDOW)
 clock=pygame.time.Clock()
 
 #Utils
@@ -64,81 +63,83 @@ def draw_level():
     for y in range(0,HEIGHT):
         for x in range(0,WIDTH):
             for e in entities:
-                if e.position==[x,y]:
+                if e.position==(x,y):
                     draw_entity(e)
                     break
-            draw_point(x,y)
+            draw_point((x,y))
     pygame.display.flip()
 
-def get(x,y):
-    if 0<=x<WIDTH and 0<=y<=HEIGHT:
-        return level[x][y]
+def get(position):
+    if 0<=position[X]<WIDTH and 0<=position[Y]<=HEIGHT:
+        return level[position[X]][position[Y]]
     return None
 
-def draw_point(x,y):
-    c=level[x][y]
-    x*=UNIT_X
-    y*=UNIT_Y
+def draw_point(position):
+    c=level[position[X]][position[Y]]
+    position=vector.multiply(position,UNIT)
     if c=='.':
-        pygame.draw.circle(surface,DOT_COLOR,(int(x+UNIT_X/2),int(y+UNIT_Y/2)),int(DOT_RADIUS))
+        pygame.draw.circle(surface,DOT_COLOR,vector.to_int(vector.add(position,vector.divide_scalar(UNIT,2))),int(DOT_RADIUS))
     elif c=='|':
-        pygame.draw.rect(surface,WALL_COLOR,(x,y,UNIT_X,UNIT_Y))
+        pygame.draw.rect(surface,WALL_COLOR,position+UNIT)
 
 def draw_entity(entity):
-    x=entity.animation[X]*UNIT_X
-    y=entity.animation[Y]*UNIT_Y
-    position=(x+PADDING,y+PADDING,UNIT_X-PADDING*2,UNIT_Y-PADDING*2)
+    animation=vector.add_scalar(vector.multiply(entity.animation,UNIT),PADDING)
+    position=animation+vector.subtract_scalar(UNIT,PADDING*2)
     pygame.draw.rect(surface,entity.color,position)
 
 def animate(entity):
+    x=0
+    y=0
     if entity.animation[X]<entity.position[X]:
-        entity.animation[X]+=ANIMATION_X
+        x=ANIMATION
     elif entity.animation[X]>entity.position[X]:
-        entity.animation[X]-=ANIMATION_X
+        x=-ANIMATION
     if entity.animation[Y]<entity.position[Y]:
-        entity.animation[Y]+=ANIMATION_Y
+        y=ANIMATION
     elif entity.animation[Y]>entity.position[Y]:
-        entity.animation[Y]-=ANIMATION_Y
+        y=-ANIMATION
+    entity.animation=vector.add(entity.animation,(x,y))
 
 def animate_restore(entity):
-    entity.animation[X]=entity.position[X]
-    entity.animation[Y]=entity.position[Y]
+    entity.animation=entity.position
 
 def distance(position1,position2):
-    difference=(position1[X]-position2[X],position1[Y]-position2[Y])
-    return math.sqrt(math.pow(difference[X],2)+math.pow(difference[Y],2))
+    return vector.module(vector.subtract(position1,position2))
 
 def border(position):
+    x=0
+    y=0
     if position[X]<0:
-        position[X]=WIDTH+position[X]
+        x=WIDTH
     elif position[X]>=WIDTH:
-        position[X]=position[X]-WIDTH
+        x=-WIDTH
     if position[Y]<0:
-        position[Y]=HEIGHT+position[Y]
+        y=HEIGHT
     elif position[Y]>=HEIGHT:
-        position[Y]=position[Y]-HEIGHT
+        y=-HEIGHT
+    return vector.add(position,(x,y))
 
 #Elements definition
 pacman=Object()
 pacman.icon='C'
 pacman.color=YELLOW
-pacman.position=[14,23]
+pacman.position=PACMAN_HOME
 def pacman_loop():
     level[pacman.position[X]][pacman.position[Y]]=' '
-    position=[pacman.position[X]+pacman.direction[X],pacman.position[Y]+pacman.direction[Y]]
-    border(position)
-    if get(position[X],position[Y])=='|':
+    position=vector.add(pacman.position,pacman.direction)
+    position=border(position)
+    if get(position)=='|':
         return
     pacman.position=position
+
 pacman.loop=pacman_loop
 
 red=Object()
 red.icon='R'
 red.color=RED
-red.position=[RED_TARGET[X],RED_TARGET[Y]]
+red.position=RED_TARGET
 def red_loop():
-    red.target[X]=pacman.position[X]
-    red.target[Y]=pacman.position[Y]
+    red.target=pacman.position
     ghost_loop(red)
 
 red.loop=red_loop
@@ -146,69 +147,62 @@ red.loop=red_loop
 blue=Object()
 blue.icon='B'
 blue.color=BLUE
-blue.position=[BLUE_TARGET[X],BLUE_TARGET[Y]]
+blue.position=BLUE_TARGET
 def blue_loop():
-    blue.target[X]=pacman.position[X]+pacman.direction[X]*2
-    blue.target[Y]=pacman.position[Y]+pacman.direction[Y]*2
-    difference=(blue.target[X]-red.position[X],blue.target[Y]-red.position[Y])
-    blue.target[X]=blue.target[X]-difference[X]
-    blue.target[Y]=blue.target[Y]-difference[Y]
+    blue.target=vector.add(pacman.position,vector.multiply_scalar(pacman.direction,2))
+    difference=vector.subtract(blue.target,red.position)
+    blue.target=vector.subtract(blue.target,difference)
     ghost_loop(blue)
+
 blue.loop=blue_loop
 
 green=Object()
 green.icon='G'
 green.color=GREEN
-green.position=[GREEN_TARGET[X],GREEN_TARGET[Y]]
+green.position=GREEN_TARGET
 def green_loop():
     if distance(green.position,pacman.position)<8:
-        green.target[X]=GREEN_TARGET[X]
-        green.target[Y]=GREEN_TARGET[Y]
+        green.target=GREEN_TARGET
     else:
-        green.target[X]=pacman.position[X]
-        green.target[Y]=pacman.position[Y]
+        green.target=pacman.position
     ghost_loop(green)
+
 green.loop=green_loop
 
 pink=Object()
 pink.icon='P'
 pink.color=PINK
-pink.position=[PINK_TARGET[X],PINK_TARGET[Y]]
+pink.position=PINK_TARGET
 def pink_loop():
-    pink.target[X]=pacman.position[X]+pacman.direction[X]*4
-    pink.target[Y]=pacman.position[Y]+pacman.direction[Y]*4
+    pink.target=vector.add(pacman.position,vector.multiply_scalar(pacman.direction,4))
     ghost_loop(pink)
+
 pink.loop=pink_loop
 
 def ghost_loop(ghost):
     moves=[UP,DOWN,RIGHT,LEFT]
-    opposite=(-ghost.direction[X],-ghost.direction[Y])
+    opposite=vector.invert(ghost.direction)
     moves.remove(opposite)
     nearest=None
     nearest_direction=None
-    nearest_distance=1000000
     for m in moves:
-        move=(ghost.position[X]+m[X],ghost.position[Y]+m[Y])
-        if get(move[X],move[Y])!='|':
-            difference=(move[X]-ghost.target[X],move[Y]-ghost.target[Y])
-            distance=math.sqrt(math.pow(difference[X],2)+math.pow(difference[Y],2))
-            if distance<nearest_distance:
+        move=vector.add(ghost.position,m)
+        if get(move)!='|':
+            if nearest is None or distance(move,ghost.target)<distance(nearest,ghost.target):
                 nearest=move
-                nearest_distance=distance
                 nearest_direction=m
-    ghost.position[X]=nearest[X]
-    ghost.position[Y]=nearest[Y]
-    border(ghost.position)
+    ghost.position=nearest
+    ghost.position=border(ghost.position)
     ghost.direction=nearest_direction
 
-entities=[pacman,red,blue,green,pink]
+entities=(pacman,red,blue,green,pink)
 for entity in entities:
     entity.direction=(0,0)
     if entity!=pacman:
         #entity.position=[GHOST_BASE[X],GHOST_BASE[Y]]
-        entity.target=[0,0]
+        entity.target=(0,0)
         entity.direction=UP
-    entity.animation=[entity.position[X],entity.position[Y]]
+    entity.animation=entity.position
 
 #Game loop
 delay=0
