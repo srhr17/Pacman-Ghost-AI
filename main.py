@@ -1,5 +1,6 @@
 import pygame
 import vector
+import sys
 pygame.init()
 
 class Object(object):
@@ -16,7 +17,7 @@ Y=1
 WIDTH=28
 HEIGHT=31
 SIZES=(WIDTH,HEIGHT)
-WINDOW=vector.multiply_scalar(SIZES,20)
+WINDOW=vector.multiply_scalar(SIZES,39)
 FPS=60
 LPS=4
 DELAY=FPS/LPS
@@ -70,7 +71,7 @@ def draw_level():
     pygame.display.flip()
 
 def get(position):
-    if 0<=position[X]<WIDTH and 0<=position[Y]<=HEIGHT:
+    if 0<=position[X]<WIDTH and 0<=position[Y]<HEIGHT:
         return level[position[X]][position[Y]]
     return None
 
@@ -218,14 +219,17 @@ while True:
     draw_level()
     clock.tick(FPS)
     for event in pygame.event.get():
-        if event.type==pygame.KEYDOWN:
-            if event.key==pygame.K_UP:
+        if event.type==pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type==pygame.KEYDOWN:
+            if event.key==pygame.K_UP or event.key==pygame.K_w:
                 pacman.direction=UP
-            elif event.key==pygame.K_LEFT:
+            elif event.key==pygame.K_LEFT or event.key==pygame.K_a:
                 pacman.direction=LEFT
-            elif event.key==pygame.K_DOWN:
+            elif event.key==pygame.K_DOWN or event.key==pygame.K_s:
                 pacman.direction=DOWN
-            elif event.key==pygame.K_RIGHT:
+            elif event.key==pygame.K_RIGHT or event.key==pygame.K_d:
                 pacman.direction=RIGHT
 
 
