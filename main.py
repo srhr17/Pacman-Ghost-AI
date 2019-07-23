@@ -47,7 +47,7 @@ PACMAN_HOME=(14,23)
 
 # Reads the map
 level=[['' for y in range(0,HEIGHT)] for x in range(0,WIDTH)]
-with open('level.txt') as f:
+with open('level2.txt') as f:
     for y in range(0,HEIGHT):
         for x in range(0,WIDTH):
             read=f.read(1)
