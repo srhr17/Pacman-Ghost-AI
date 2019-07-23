@@ -2,6 +2,7 @@ import pygame
 import vector
 import sys
 pygame.init()
+pygame.mixer.set_num_channels(3)
 
 class Object(object):
     pass
@@ -17,9 +18,9 @@ Y=1
 WIDTH=28
 HEIGHT=31
 SIZES=(WIDTH,HEIGHT)
-WINDOW=vector.multiply_scalar(SIZES,39)
+WINDOW=vector.multiply_scalar(SIZES,20)
 FPS=60
-LPS=4
+LPS=5
 DELAY=FPS/LPS
 UNIT=vector.divide(WINDOW,SIZES)
 ANIMATION=1/DELAY
@@ -91,6 +92,9 @@ def draw_entity(entity):
 def animate(entity):
     x=0
     y=0
+    difference=vector.subtract(entity.animation,entity.position)
+    if vector.module(difference)>5:
+        animate_restore(entity)
     if entity.animation[X]<entity.position[X]:
         x=ANIMATION
     elif entity.animation[X]>entity.position[X]:
@@ -126,6 +130,9 @@ pacman.icon='C'
 pacman.color=YELLOW
 pacman.position=PACMAN_HOME
 def pacman_loop():
+    if level[pacman.position[X]][pacman.position[Y]]=='.':
+        bite_sound.stop()
+        bite_sound.play()
     level[pacman.position[X]][pacman.position[Y]]=' '
     position=vector.add(pacman.position,pacman.direction)
     position=border(position)
@@ -181,6 +188,9 @@ def pink_loop():
 pink.loop=pink_loop
 
 def ghost_loop(ghost):
+    if ghost.position==pacman.position:
+        dead_sound.play()
+        pacman.position=PACMAN_HOME
     moves=[UP,DOWN,RIGHT,LEFT]
     opposite=vector.invert(ghost.direction)
     moves.remove(opposite)
@@ -195,6 +205,9 @@ def ghost_loop(ghost):
     ghost.position=nearest
     ghost.position=border(ghost.position)
     ghost.direction=nearest_direction
+    if ghost.position==pacman.position:
+        dead_sound.play()
+        pacman.position=PACMAN_HOME
 
 entities=(pacman,red,blue,green,pink)
 for entity in entities:
@@ -207,8 +220,17 @@ for entity in entities:
 
 #Game loop
 delay=0
+sound_delay=0
+background_sound=pygame.mixer.Sound('background.ogg')
+bite_sound=pygame.mixer.Sound('bite.ogg')
+dead_sound=pygame.mixer.Sound('dead.ogg')
 while True:
     delay+=1
+    sound_delay+=1
+    if sound_delay>background_sound.get_length()*FPS-10:
+        sound_delay=0
+        background_sound.stop()
+        background_sound.play()
     if delay>=DELAY:
         delay=0
         for entity in entities:
